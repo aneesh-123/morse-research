@@ -17,13 +17,10 @@ The recommended low-maintenance setup is **Vercel + Neon** (both have free tiers
    * Supabase: Project settings → Database → connection string, "Transaction pooler" (port 6543), with
      `?sslmode=require`. Migration 002 turns on row-level security and revokes access from Supabase's `anon` and
      `authenticated` roles, so its auto-generated REST API exposes nothing.
-3. **Apply the schema** from your own computer (Node 22, in this folder):
-   ```bash
-   npm ci
-   DATABASE_URL='postgres://…?sslmode=require' npm run db:migrate
-   DATABASE_URL='postgres://…?sslmode=require' npm run researcher:create -- you@your-domain.org
-   ```
-   `db:migrate` is idempotent; run it again after every deployment that adds a migration or protocol version.
+3. **Schema and researcher login are automatic on Vercel.** Vercel runs the `vercel-build` script, which applies the
+   migrations (`npm run db:migrate`), creates the researcher account from `RESEARCHER_EMAIL` / `RESEARCHER_PASSWORD`
+   when both are set (`npm run researcher:bootstrap`), then builds. Both steps are idempotent. On other hosts run
+   `npm run db:migrate` and `npm run researcher:create -- you@your-domain.org` yourself.
 4. **Create the Vercel project**: "Add New → Project", import the repository. Framework: Next.js (detected). Add the
    environment variables below for **Production**, then deploy.
 5. **Set the domain**: Vercel gives you `https://<project>.vercel.app`, or add your own domain. Set `APP_URL` to the
@@ -42,6 +39,7 @@ The recommended low-maintenance setup is **Vercel + Neon** (both have free tiers
 | `STUDY_CONTACT_NAME`, `STUDY_CONTACT_EMAIL` | optional | defaults for the consent contact; can be set in the dashboard instead |
 | `STUDY_INSTITUTION`, `STUDY_ETHICS_STATEMENT` | optional | leave unset unless true |
 | `SMTP_URL`, `EMAIL_FROM` | optional | enables email sign-in, e.g. `smtps://resend:<API_KEY>@smtp.resend.com:465` and `Morse Study <study@your-domain>` (the sender domain must be verified with the provider) |
+| `RESEARCHER_EMAIL`, `RESEARCHER_PASSWORD` | optional | researcher login created or updated at each Vercel build (password 12+ characters); change the password by changing the variable and redeploying |
 | `DATABASE_POOL_MAX` | optional | default 5 connections per server instance |
 
 Never set `INSECURE_COOKIES`, `EMAIL_DEV_LOG` or `RATE_LIMIT_DISABLED` in production (`EMAIL_DEV_LOG` prints

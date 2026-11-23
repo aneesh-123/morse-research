@@ -9,11 +9,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npm run db:migrate && npm run researcher:bootstrap && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
     "db:migrate": "tsx scripts/migrate.ts",
     "researcher:create": "tsx --conditions=react-server scripts/create-researcher.ts",
+    "researcher:bootstrap": "tsx --conditions=react-server scripts/bootstrap-researcher.ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
