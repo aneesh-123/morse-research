@@ -6,7 +6,7 @@ import { markResumed } from '@/lib/server/experiment';
 type Ctx = { params: Promise<{ id: string }> };
 
 export const POST = api(async (req: NextRequest, ctx: Ctx) => {
-  const body = await readJson(req, z.object({}).passthrough(), 1024);
+  await readJson(req, z.object({}).passthrough(), 1024);
   const p = await requireParticipant();
   const { id } = await ctx.params;
   await limitOrThrow(`resume:${p.id}`, 120, 600);

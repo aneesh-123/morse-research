@@ -1,0 +1,21 @@
+Morse Learning Study (research platform)
+Copyright 2026 the project contributors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This project reuses material from Morse Learn by Ace Centre
+(https://github.com/AceCentre/morse-learn, Apache-2.0), itself a fork of the
+Morse code experiment by Google Creative Lab with Tania Finlayson
+(https://github.com/googlecreativelab/morse-learn). Copyright 2018 Google Inc.;
+portions copyright Ace Centre.
+
+Reused and adapted:
+- The International Morse code letter mapping from scripts/morse-dictionary.js
+  (now src/lib/protocol/morse.ts).
+- The teaching approach of introducing letters progressively while continuing
+  to practise previously introduced letters (re-implemented here as a fixed,
+  non-adaptive schedule; no source code of the game engine is included).
+
+Not reused: the Phaser game, keyboard/switch input, recorded mp3 audio,
+picture and sound-alike mnemonics, adaptive progression and analytics service.
+This project is not affiliated with or endorsed by Ace Centre or Google.

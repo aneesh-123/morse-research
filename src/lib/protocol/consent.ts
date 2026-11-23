@@ -61,14 +61,14 @@ export function day1Consent(c: StudyContact): ConsentDocument {
       {
         heading: 'How your data is stored',
         body: [
-          'Your data is stored in a secured database linked to a random participant ID. Only the research team can see it. Your nickname and email (if given) are kept separately from research data and are not included in research exports.',
+          'Your data is stored in a secured database linked to a random participant ID. Only the research team can see it. Your email (if given) is kept separately from research data and is never included in research exports. Your nickname is left out of exports unless a researcher specifically includes it.',
           c.dataRetention.trim(),
         ],
       },
       {
         heading: 'Your choices',
         body: [
-          'Taking part is voluntary. You can stop at any time by leaving the page. You can delete your account and all of your data at any time from your home page.',
+          'Taking part is voluntary. You can stop at any time by leaving the page. If you stop part-way, the answers you already gave are kept unless you delete them. You can delete your account and all of your data at any time from your home page.',
           contactLine(c),
           ethicsLine(c),
         ],

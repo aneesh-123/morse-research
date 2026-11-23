@@ -61,17 +61,17 @@ export const wrong: Strategy = (t, opts) => opts.find((o) => o !== t) ?? null;
 
 export async function startDay1(participantId: string, opts: { skipDiagnostic: boolean; rating?: number }): Promise<SessionState> {
   const { sessionId } = await startSession(participantId, 'day1_learning');
-  let st = await sessionState(participantId, sessionId);
-  st = await recordConsent(participantId, sessionId, { decision: 'agreed', consentSha256: st.consent!.sha256 });
-  st = await completeAudioSetup(participantId, sessionId, CLIENT_INFO);
+  const st = await sessionState(participantId, sessionId);
+  await recordConsent(participantId, sessionId, { decision: 'agreed', consentSha256: st.consent!.sha256 });
+  await completeAudioSetup(participantId, sessionId, CLIENT_INFO);
   return submitScreening(participantId, sessionId, { priorKnowledgeRating: opts.rating ?? (opts.skipDiagnostic ? 1 : 3), skipDiagnostic: opts.skipDiagnostic });
 }
 
 export async function startRetention(participantId: string): Promise<SessionState> {
   const { sessionId } = await startSession(participantId, 'delayed_retention');
-  let st = await sessionState(participantId, sessionId);
-  st = await recordConsent(participantId, sessionId, { decision: 'agreed', consentSha256: st.consent!.sha256 });
-  st = await completeAudioSetup(participantId, sessionId, CLIENT_INFO);
+  const st = await sessionState(participantId, sessionId);
+  await recordConsent(participantId, sessionId, { decision: 'agreed', consentSha256: st.consent!.sha256 });
+  await completeAudioSetup(participantId, sessionId, CLIENT_INFO);
   return submitRetentionScreening(participantId, sessionId, { practicedSince: 'no' });
 }
 

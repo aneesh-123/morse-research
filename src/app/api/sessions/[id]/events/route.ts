@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { z } from 'zod';
 import { api, limitOrThrow, readJson, requireParticipant } from '@/lib/server/http';
 import { recordEvents, EventBatchSchema } from '@/lib/server/experiment';
 
