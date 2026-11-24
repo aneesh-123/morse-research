@@ -26,50 +26,60 @@ function useAction() {
 }
 
 // ------------------------------------------------------------------------------------ consent
-const SLIDE_ICONS: [RegExp, string][] = [
-  [/about/i, '🧪'],
-  [/do/i, '🎧'],
-  [/record/i, '📝'],
-  [/stored|data/i, '🔒'],
-  [/choice/i, '🙌'],
+/**
+ * Short plain-language key points shown on each consent box. They summarise the full section,
+ * which opens when the box is tapped. The full text (the part covered by the stored hash) is
+ * always available on the same page; ui-v3 records that this layout was used.
+ */
+const KEY_POINTS: [RegExp, string, string[]][] = [
+  [/about/i, '🧪', ['How people learn to recognise Morse code by ear']],
+  [/do/i, '🎧', ['Listen to beeps and tap the letter you hear', 'About 15 to 20 minutes, for adults 18+']],
+  [/record/i, '📝', ['Your answers, timing and taps in the study', 'No microphone, typing or browsing history']],
+  [/stored|data/i, '🔒', ['Linked to a random ID, seen only by the research team']],
+  [/choice/i, '🙌', ['Voluntary: stop whenever you like', 'Delete your data any time from your home page']],
 ];
-const iconFor = (heading: string) => SLIDE_ICONS.find(([re]) => re.test(heading))?.[1] ?? '💡';
+const pointsFor = (heading: string) => KEY_POINTS.find(([re]) => re.test(heading)) ?? [/./, '💡', []];
 
 /**
- * The consent document shown one section per slide. Every word of the document is shown; the
- * participant agrees on the last slide. The stored hash covers exactly these sections.
+ * The consent document as key-point boxes. Each box expands to the section's full text. The agree
+ * and decline buttons are always on the page; "Skip to the end" scrolls straight to them.
  */
 export function ConsentView({ sessionId, consent, onDone }: { sessionId: string; consent: ConsentDocument & { sha256: string }; onDone: (s: SessionState) => void }) {
   const { busy, error, run } = useAction();
-  const [i, setI] = useState(0);
-  const n = consent.sections.length;
-  const last = i === n - 1;
-  const sec = consent.sections[i]!;
   const decide = (decision: 'agreed' | 'declined') =>
     run(async () => onDone(await apiFetch<SessionState>(`/api/sessions/${sessionId}/consent`, { decision, consentSha256: consent.sha256 })));
+  const skip = () => document.getElementById('consent-decision')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   return (
-    <div className="slides">
-      <p className="phase-label center" style={{ margin: '4px 0 0' }}>{consent.title}</p>
-      <div className="dots" aria-hidden>{consent.sections.map((_, k) => <span key={k} className={k === i ? 'on' : ''} />)}</div>
-      <section className="card slide" key={i} aria-live="polite">
-        <div className="slide-icon" aria-hidden>{iconFor(sec.heading)}</div>
-        <h2 className="center">{sec.heading}</h2>
-        {sec.body.map((p, k) => <p key={k}>{p}</p>)}
-        {last && <p className="small muted" style={{ margin: 0 }}>Consent version {consent.version}. Nothing about your activity is recorded until you agree.</p>}
-      </section>
-      {error && <div className="error" role="alert">{error}</div>}
-      {last ? (
-        <div className="stack">
-          <button className="btn btn-primary btn-block" disabled={busy} onClick={() => void decide('agreed')} data-testid="consent-agree">{consent.agreeLabel}</button>
-          <button className="btn btn-secondary btn-block" disabled={busy} onClick={() => void decide('declined')} data-testid="consent-decline">{consent.declineLabel}</button>
-          <button className="btn btn-ghost btn-block" onClick={() => setI(i - 1)}>← Back</button>
-        </div>
-      ) : (
-        <div className="row" style={{ flexWrap: 'nowrap' }}>
-          {i > 0 && <button className="btn btn-secondary" onClick={() => setI(i - 1)} aria-label="Previous">←</button>}
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setI(i + 1)} data-testid="slide-next">Got it →</button>
-        </div>
-      )}
+    <div>
+      <div className="center">
+        <div className="slide-icon" aria-hidden>👋</div>
+        <h1>{consent.title}</h1>
+        <p className="muted" style={{ marginTop: 0 }}>The key points are below. Tap a box if you want the details.</p>
+        <button className="btn btn-ghost" onClick={skip} data-testid="consent-skip">Skip to the end ↓</button>
+      </div>
+      <div className="points">
+        {consent.sections.map((sec, k) => {
+          const [, icon, bullets] = pointsFor(sec.heading);
+          return (
+            <details className="point" key={k} style={{ animationDelay: `${k * 60}ms` }} data-testid={`consent-point-${k}`}>
+              <summary>
+                <span className="point-icon" aria-hidden>{icon}</span>
+                <span className="point-text">
+                  <strong>{sec.heading}</strong>
+                  <ul>{bullets.map((b) => <li key={b}>{b}</li>)}</ul>
+                </span>
+              </summary>
+              <div className="point-body">{sec.body.map((p, j) => <p key={j}>{p}</p>)}</div>
+            </details>
+          );
+        })}
+      </div>
+      <div className="stack" id="consent-decision">
+        <p className="small muted center" style={{ margin: '4px 0 0' }}>Consent version {consent.version}. Nothing about your activity is recorded until you agree.</p>
+        {error && <div className="error" role="alert">{error}</div>}
+        <button className="btn btn-primary btn-block" disabled={busy} onClick={() => void decide('agreed')} data-testid="consent-agree">{consent.agreeLabel}</button>
+        <button className="btn btn-secondary btn-block" disabled={busy} onClick={() => void decide('declined')} data-testid="consent-decline">{consent.declineLabel}</button>
+      </div>
     </div>
   );
 }

@@ -165,7 +165,21 @@ label { display: block; font-weight: 800; margin-bottom: 6px; }
 .feature { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px 8px; text-align: center; font-weight: 800; font-size: 0.85rem; box-shadow: var(--shadow); }
 .feature .ico { font-size: 1.6rem; display: block; margin-bottom: 4px; }
 
-/* ---------------- consent slides */
+/* ---------------- consent key points */
+.points { overflow-x: clip; display: grid; gap: 10px; margin: 14px 0 18px; }
+.point { border: 2px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); overflow: hidden; animation: point-in 320ms cubic-bezier(.2,.8,.2,1) both; transition: border-color 200ms ease, box-shadow 200ms ease; }
+.point summary { list-style: none; cursor: pointer; padding: 14px 14px; display: flex; align-items: flex-start; gap: 12px; }
+.point summary::-webkit-details-marker { display: none; }
+.point summary::after { content: '▾'; margin-left: auto; color: var(--accent); font-weight: 900; transition: transform 200ms ease; align-self: center; }
+.point[open] summary::after { transform: rotate(180deg); }
+.point[open] { border-color: var(--accent); box-shadow: 0 6px 18px rgba(107, 76, 246, .12); }
+.point-icon { flex: none; width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; font-size: 1.4rem; background: var(--accent-soft); }
+.point-text strong { display: block; font-size: 1.02rem; margin-bottom: 2px; }
+.point-text ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: .95rem; }
+.point-body { padding: 0 16px 6px 68px; font-size: .95rem; animation: fade-in 220ms ease; }
+.point-body p { margin: 0 0 10px; }
+@media (max-width: 380px) { .point-body { padding-left: 16px; } }
+/* ---------------- consent slides (legacy) */
 .slides { position: relative; overflow-x: clip; }
 .slide { animation: slide-in 320ms cubic-bezier(.2,.8,.2,1); }
 @keyframes slide-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
@@ -318,3 +332,6 @@ table.t tr:last-child td { border-bottom: 0; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
 details summary { cursor: pointer; font-weight: 600; }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes point-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

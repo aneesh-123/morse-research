@@ -1,7 +1,7 @@
 'use client';
 
 /** Bump when the participant interface changes in a way that could affect behaviour. ui-v1 = first pilot design. */
-export const UI_VERSION = 'ui-v2';
+export const UI_VERSION = 'ui-v3';
 
 /**
  * Coarse device description (category, browser family, OS family, touch, viewport).

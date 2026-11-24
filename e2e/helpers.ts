@@ -51,17 +51,17 @@ export async function createProfile(page: Page, name: string, email?: string): P
   return code;
 }
 
-/** Pages through the consent slides until the agree/decline buttons are shown. */
+/** Uses the skip link to reach the agree/decline buttons below the consent key points. */
 export async function clickThroughConsentSlides(page: Page) {
-  await expect(page.getByTestId('slide-next')).toBeVisible();
-  for (let k = 0; k < 10 && (await page.getByTestId('slide-next').isVisible()); k++) await page.getByTestId('slide-next').click();
+  await expect(page.getByTestId('consent-skip')).toBeVisible();
+  await page.getByTestId('consent-skip').click();
   await expect(page.getByTestId('consent-agree')).toBeVisible();
 }
 
 export async function startAndConsent(page: Page) {
   await page.getByRole('button', { name: 'Start' }).click();
   await expect(page).toHaveURL(/\/study\//);
-  await expect(page.getByTestId('slide-next')).toBeVisible();
+  await expect(page.getByTestId('consent-skip')).toBeVisible();
   await expectNoHorizontalOverflow(page, 'consent');
   await clickThroughConsentSlides(page);
   await page.getByTestId('consent-agree').click();
