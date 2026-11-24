@@ -38,24 +38,32 @@ export async function expectTouchTargets(page: Page) {
 
 export async function createProfile(page: Page, name: string, email?: string): Promise<string> {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Create your learner profile' }).click();
+  await page.getByRole('link', { name: 'Let’s go' }).click();
   await page.getByLabel('Nickname').fill(name);
   if (email) await page.getByLabel(/Email/).fill(email);
   await page.getByText('I am 18 years old or older').click();
-  await page.getByRole('button', { name: 'Create profile' }).click();
+  await page.getByRole('button', { name: 'Create my profile' }).click();
   const code = (await page.getByTestId('recovery-code').textContent())?.trim() ?? '';
   expect(code).toMatch(/^[0-9A-Z-]{30}$/);
-  await page.getByText(/I have saved my recovery code/).click();
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByText(/I saved my recovery code/).click();
+  await page.getByRole('button', { name: 'Let’s start' }).click();
   await expect(page).toHaveURL(/\/home/);
   return code;
+}
+
+/** Pages through the consent slides until the agree/decline buttons are shown. */
+export async function clickThroughConsentSlides(page: Page) {
+  await expect(page.getByTestId('slide-next')).toBeVisible();
+  for (let k = 0; k < 10 && (await page.getByTestId('slide-next').isVisible()); k++) await page.getByTestId('slide-next').click();
+  await expect(page.getByTestId('consent-agree')).toBeVisible();
 }
 
 export async function startAndConsent(page: Page) {
   await page.getByRole('button', { name: 'Start' }).click();
   await expect(page).toHaveURL(/\/study\//);
-  await expect(page.getByTestId('consent-agree')).toBeVisible();
+  await expect(page.getByTestId('slide-next')).toBeVisible();
   await expectNoHorizontalOverflow(page, 'consent');
+  await clickThroughConsentSlides(page);
   await page.getByTestId('consent-agree').click();
   await page.getByTestId('enable-audio').click();
   await expect(page.getByTestId('audio-ok')).toBeEnabled();

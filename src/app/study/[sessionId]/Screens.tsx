@@ -26,27 +26,50 @@ function useAction() {
 }
 
 // ------------------------------------------------------------------------------------ consent
+const SLIDE_ICONS: [RegExp, string][] = [
+  [/about/i, '🧪'],
+  [/do/i, '🎧'],
+  [/record/i, '📝'],
+  [/stored|data/i, '🔒'],
+  [/choice/i, '🙌'],
+];
+const iconFor = (heading: string) => SLIDE_ICONS.find(([re]) => re.test(heading))?.[1] ?? '💡';
+
+/**
+ * The consent document shown one section per slide. Every word of the document is shown; the
+ * participant agrees on the last slide. The stored hash covers exactly these sections.
+ */
 export function ConsentView({ sessionId, consent, onDone }: { sessionId: string; consent: ConsentDocument & { sha256: string }; onDone: (s: SessionState) => void }) {
   const { busy, error, run } = useAction();
+  const [i, setI] = useState(0);
+  const n = consent.sections.length;
+  const last = i === n - 1;
+  const sec = consent.sections[i]!;
   const decide = (decision: 'agreed' | 'declined') =>
     run(async () => onDone(await apiFetch<SessionState>(`/api/sessions/${sessionId}/consent`, { decision, consentSha256: consent.sha256 })));
   return (
-    <div>
-      <h1>{consent.title}</h1>
-      <div className="card">
-        {consent.sections.map((s) => (
-          <section key={s.heading} style={{ marginBottom: 14 }}>
-            <h3>{s.heading}</h3>
-            {s.body.map((p, i) => <p key={i}>{p}</p>)}
-          </section>
-        ))}
-        <p className="small muted" style={{ margin: 0 }}>Consent version {consent.version}. Nothing about your activity is recorded until you agree.</p>
-      </div>
+    <div className="slides">
+      <p className="phase-label center" style={{ margin: '4px 0 0' }}>{consent.title}</p>
+      <div className="dots" aria-hidden>{consent.sections.map((_, k) => <span key={k} className={k === i ? 'on' : ''} />)}</div>
+      <section className="card slide" key={i} aria-live="polite">
+        <div className="slide-icon" aria-hidden>{iconFor(sec.heading)}</div>
+        <h2 className="center">{sec.heading}</h2>
+        {sec.body.map((p, k) => <p key={k}>{p}</p>)}
+        {last && <p className="small muted" style={{ margin: 0 }}>Consent version {consent.version}. Nothing about your activity is recorded until you agree.</p>}
+      </section>
       {error && <div className="error" role="alert">{error}</div>}
-      <div className="stack">
-        <button className="btn btn-primary btn-block" disabled={busy} onClick={() => void decide('agreed')} data-testid="consent-agree">{consent.agreeLabel}</button>
-        <button className="btn btn-secondary btn-block" disabled={busy} onClick={() => void decide('declined')} data-testid="consent-decline">{consent.declineLabel}</button>
-      </div>
+      {last ? (
+        <div className="stack">
+          <button className="btn btn-primary btn-block" disabled={busy} onClick={() => void decide('agreed')} data-testid="consent-agree">{consent.agreeLabel}</button>
+          <button className="btn btn-secondary btn-block" disabled={busy} onClick={() => void decide('declined')} data-testid="consent-decline">{consent.declineLabel}</button>
+          <button className="btn btn-ghost btn-block" onClick={() => setI(i - 1)}>← Back</button>
+        </div>
+      ) : (
+        <div className="row" style={{ flexWrap: 'nowrap' }}>
+          {i > 0 && <button className="btn btn-secondary" onClick={() => setI(i - 1)} aria-label="Previous">←</button>}
+          <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setI(i + 1)} data-testid="slide-next">Got it →</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -74,7 +97,7 @@ export function AudioSetupView({ audioParams, onUnlock, onConfirmed, telemetry }
 
   return (
     <div>
-      <h1>Sound check</h1>
+      <div className="center"><div className="slide-icon" aria-hidden>🎧</div><h1>Sound check</h1></div>
       <div className="card">
         <p>Put on headphones or turn your speaker up to a comfortable level. On an iPhone, check that the side switch is not on silent.</p>
         {!enabled ? (
@@ -88,7 +111,7 @@ export function AudioSetupView({ audioParams, onUnlock, onConfirmed, telemetry }
               }
             })}
           >
-            Enable audio
+            🔊 Turn on sound
           </button>
         ) : (
           <div className="stack">
@@ -109,7 +132,7 @@ export function AudioSetupView({ audioParams, onUnlock, onConfirmed, telemetry }
               <li>Turn the volume up and take your phone off silent.</li>
               <li>Disconnect and reconnect Bluetooth headphones, or try the phone speaker.</li>
               <li>Close other apps that are playing sound.</li>
-              <li>Reload this page and tap “Enable audio” again. Your place is saved.</li>
+              <li>Reload this page and tap “Turn on sound” again. Your place is saved.</li>
             </ul>
           </div>
         )}
@@ -128,7 +151,7 @@ export function ScreeningView({ sessionId, onDone }: { sessionId: string; onDone
   const value = none ? 1 : rating;
   return (
     <div>
-      <h1>One quick question</h1>
+      <div className="center"><div className="slide-icon" aria-hidden>🤔</div><h1>One quick question</h1></div>
       <div className="card">
         <label htmlFor="rating" style={{ fontSize: '1.1rem' }}>How much Morse code do you currently know?</label>
         <div className="slider-value" aria-hidden>{value}</div>
@@ -203,42 +226,47 @@ export function RetentionScreeningView({ sessionId, hoursSince, onDone }: { sess
 }
 
 // ------------------------------------------------------------------------------------ phase intros
-const PHASE_TEXT: Record<string, { title: string; body: string[] }> = {
+const PHASE_TEXT: Record<string, { icon: string; title: string; body: string[] }> = {
   diagnostic: {
+    icon: '🔎',
     title: 'Quick check',
     body: [
-      'You will hear 12 short Morse signals. For each one, pick the letter you think it is, or “I don’t know”.',
-      'There is no feedback and each sound plays once. Nobody is expected to know these yet.',
+      'Before you learn anything, let’s see what you already know. You’ll hear 12 short beeps. Pick the letter you think it is, or tap “I don’t know”.',
+      'No one is expected to know these yet. There’s no feedback here and each sound plays once.',
     ],
   },
   learning: {
-    title: 'Learning',
+    icon: '🚀',
+    title: 'Let’s learn',
     body: [
-      'You will learn six letters, a few at a time. New letters are added as you go, and you keep practising the earlier ones.',
-      'After each answer you will see the correct letter. You can replay a sound before answering.',
+      'You’ll unlock six letters, a couple at a time. Hear a beep, tap the letter, and we’ll show you if you got it.',
+      'Want to hear it again? Tap “Play it again” as often as you like.',
     ],
   },
   final: {
-    title: 'Final test',
+    icon: '🏆',
+    title: 'Final challenge',
     body: [
-      'You will hear 24 signals using all six letters. Pick the letter for each, or “I don’t know”.',
-      'This time there is no feedback, no replay and no chart. Each sound plays once.',
+      'Show what you’ve learned! You’ll hear 24 beeps using all six letters. Pick the letter for each, or “I don’t know”.',
+      'This round has no hints: each sound plays once and you’ll see your score at the end.',
     ],
   },
   retention: {
+    icon: '🧠',
     title: 'Follow-up check',
-    body: ['You will hear 24 signals. Pick the letter for each, or “I don’t know”. There is no feedback and each sound plays once.'],
+    body: ['You’ll hear 24 beeps. Pick the letter for each, or “I don’t know”. Each sound plays once and you’ll see your score at the end.'],
   },
 };
 
 export function PhaseIntro({ phase, resumed, onStart }: { phase: string; resumed: boolean; optionsCount: number; onStart: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
-  const txt = PHASE_TEXT[phase] ?? { title: 'Continue', body: [] };
+  const txt = PHASE_TEXT[phase] ?? { icon: '▶️', title: 'Continue', body: [] };
   return (
-    <div>
+    <div className="center">
+      <div className="slide-icon" aria-hidden>{resumed ? '👋' : txt.icon}</div>
       <h1>{resumed ? 'Welcome back' : txt.title}</h1>
-      <div className="card">
-        {resumed ? <p>Your answers so far are saved. Tap continue to switch the sound back on and carry on with the {txt.title.toLowerCase()}.</p> : txt.body.map((p, i) => <p key={i}>{p}</p>)}
+      <div className="card" style={{ textAlign: 'left' }}>
+        {resumed ? <p style={{ margin: 0 }}>Everything so far is saved. Tap continue to turn the sound back on and pick up where you left off.</p> : txt.body.map((p, i) => <p key={i} style={i === txt.body.length - 1 ? { margin: 0 } : undefined}>{p}</p>)}
       </div>
       <button className="btn btn-primary btn-block" disabled={busy} data-testid="phase-start" onClick={async () => { setBusy(true); await onStart(); setBusy(false); }}>
         {resumed ? 'Continue' : 'Start'}
@@ -250,31 +278,52 @@ export function PhaseIntro({ phase, resumed, onStart }: { phase: string; resumed
 // ------------------------------------------------------------------------------------ end states
 export function CompletionView({ completion }: { completion: CompletionSummary }) {
   const t = completion.test;
+  const day1 = completion.studyType === 'day1_learning';
   return (
-    <div data-testid="completion">
-      <h1>All done — thank you!</h1>
-      <div className="card">
-        <p>{completion.studyType === 'day1_learning' ? 'You have completed the learning session.' : 'You have completed the follow-up check.'}</p>
-        <h3>Your measured results</h3>
-        <p>
-          {completion.studyType === 'day1_learning' ? 'Final test' : 'Follow-up check'}: <strong>{t.correct} of {t.total}</strong> correct
-          {completion.learning ? <> · during learning: {completion.learning.correct} of {completion.learning.total} correct</> : null}
-          {completion.durationMinutes !== null ? <> · about {Math.round(completion.durationMinutes)} minutes</> : null}
-        </p>
-        <div className="row small">
+    <div data-testid="completion" className="center">
+      <Confetti />
+      <div className="slide-icon" aria-hidden>🎉</div>
+      <h1>You did it!</h1>
+      <p className="muted">{day1 ? 'You learned six Morse letters. Thanks for taking part!' : 'Follow-up done. Thanks for coming back!'}</p>
+      <section className="card">
+        <div className="score-ring">{t.correct}<span className="muted" style={{ fontSize: '1.4rem' }}> / {t.total}</span></div>
+        <p className="muted" style={{ margin: '4px 0 0', fontWeight: 800 }}>{day1 ? 'Final challenge score' : 'Follow-up score'}</p>
+        <div className="results">
           {t.perCharacter.map((c) => (
-            <span key={c.character} className="badge">{c.character}: {c.correct}/{c.total}</span>
+            <div key={c.character} className="result" aria-label={`${c.character}: ${c.correct} of ${c.total}`}>
+              <div className="l">{c.character}</div>
+              <div className="s" aria-hidden>{Array.from({ length: c.total }, (_, k) => <span key={k} className={k < c.correct ? '' : 'off'}>★</span>)}</div>
+            </div>
           ))}
         </div>
-        <p className="hint">These are counts from the test itself. With only a few signals per letter they are a rough snapshot, not a verdict on what you know.</p>
-      </div>
-      <div className="card">
-        <p style={{ margin: 0 }}>
-          Your profile is saved. Follow-up sessions may become available later; you would see them on your profile page when you sign in again.
-          Nothing new starts without asking you first.
+        <p className="small muted" style={{ margin: 0 }}>
+          {completion.learning ? <>During practice you got {completion.learning.correct} of {completion.learning.total} right. </> : null}
+          {completion.durationMinutes !== null ? <>It took about {Math.round(completion.durationMinutes)} minutes. </> : null}
+          A few beeps per letter is only a rough snapshot, not a verdict on what you know.
         </p>
-      </div>
+      </section>
+      <section className="card card-tight small" style={{ textAlign: 'left' }}>
+        Your profile is saved. If a follow-up session opens later, you’ll see it on your profile page. Nothing new starts without asking you first.
+      </section>
       <a className="btn btn-primary btn-block" href="/home">Go to my profile</a>
+    </div>
+  );
+}
+
+function Confetti() {
+  const colors = ['var(--accent)', 'var(--pop)', 'var(--sun)', 'var(--sky)', 'var(--mint)'];
+  return (
+    <div className="confetti" aria-hidden>
+      {Array.from({ length: 40 }, (_, k) => {
+        const angle = (Math.PI * 2 * k) / 40;
+        const dist = 160 + (k % 5) * 50;
+        return (
+          <i
+            key={k}
+            style={{ background: colors[k % colors.length], animationDuration: '1600ms', animationDelay: `${(k % 7) * 40}ms`, ['--dx' as string]: `${Math.round(Math.cos(angle) * dist)}px`, ['--dy' as string]: `${Math.round(Math.sin(angle) * dist - 60)}px`, ['--rot' as string]: `${(k * 47) % 720 - 360}deg` } as React.CSSProperties}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -286,7 +335,8 @@ export function EndedView({ stage }: { stage: string }) {
       ? 'This session was stopped.'
       : 'This session is closed.';
   return (
-    <div className="card">
+    <div className="card center">
+      <div className="slide-icon" aria-hidden>👋</div>
       <h1>Session ended</h1>
       <p>{text}</p>
       <a className="btn btn-secondary btn-block" href="/home">Go to my profile</a>

@@ -8,6 +8,7 @@ import { deviceInfo } from '@/lib/client/device';
 import { telemetryAllowed } from '@/lib/protocol/state-machine';
 import type { SessionState } from '@/lib/protocol/api-types';
 import { TrialRunner } from './TrialRunner';
+import { Logo } from '@/components/TopBar';
 import { ConsentView, AudioSetupView, ScreeningView, RetentionScreeningView, PhaseIntro, CompletionView, EndedView } from './Screens';
 
 const TRIAL_STAGES = ['diagnostic', 'learning', 'final_assessment', 'retention_test'];
@@ -15,9 +16,10 @@ const TRIAL_STAGES = ['diagnostic', 'learning', 'final_assessment', 'retention_t
 const PHASE_NAMES: Record<string, string> = {
   diagnostic: 'Quick check',
   learning: 'Learning',
-  final: 'Final test',
+  final: 'Final challenge',
   retention: 'Follow-up check',
 };
+const ALL_LETTERS = ['E', 'T', 'A', 'N', 'I', 'M'];
 
 export function StudyRunner({ sessionId }: { sessionId: string }) {
   const router = useRouter();
@@ -27,6 +29,7 @@ export function StudyRunner({ sessionId }: { sessionId: string }) {
   const [phaseIntroSeen, setPhaseIntroSeen] = useState<Record<string, boolean>>({});
   const [confirmExit, setConfirmExit] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [streak, setStreak] = useState(0);
   const telemetry = useRef<Telemetry | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const loaded = useRef(false);
@@ -167,6 +170,8 @@ export function StudyRunner({ sessionId }: { sessionId: string }) {
           telemetry={telemetry.current}
           onAdvance={update}
           onAudioLost={() => setAudioReady(false)}
+          onResult={(correct) => setStreak((k) => (correct ? k + 1 : 0))}
+          streak={streak}
         />
       );
     }
@@ -181,21 +186,26 @@ export function StudyRunner({ sessionId }: { sessionId: string }) {
   return (
     <div className="study-shell" ref={root}>
       <header className="study-header">
-        <span className="brand-mark" aria-hidden>·−</span>
-        <div style={{ flex: 1 }}>
-          {inTrials && trial && progress ? (
-            <>
-              <div className="row small" style={{ justifyContent: 'space-between' }}>
-                <span className="phase-label">
-                  {PHASE_NAMES[trial.phase]}
-                  {trial.block && trial.blockCount ? ` · block ${trial.block} of ${trial.blockCount}` : ''}
-                </span>
-                <span className="muted" data-testid="trial-counter">{trial.phaseIndex} / {trial.phaseTotal}</span>
+        {!(inTrials && trial && trial.phase === 'learning') && <Logo />}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {inTrials && trial && trial.phase === 'learning' ? (
+            <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 8 }}>
+              <div className="letter-strip" aria-label={`Letters learned so far: ${trial.options.join(', ')}`}>
+                {ALL_LETTERS.map((c) => {
+                  const on = trial.options.includes(c);
+                  const fresh = trial.introduce.some((x) => x.character === c);
+                  return <span key={c} className={`letter-chip${on ? ' on' : ''}${fresh ? ' fresh' : ''}`}>{on ? c : '?'}</span>;
+                })}
               </div>
+              {streak >= 2 && <span className={`streak${streak >= 5 ? ' hot' : ''}`} aria-label={`${streak} correct in a row`}>🔥 {streak}</span>}
+            </div>
+          ) : inTrials && trial && progress ? (
+            <>
+              <span className="phase-label">{PHASE_NAMES[trial.phase]}</span>
               <div className="progress" aria-hidden><div style={{ width: `${pct}%` }} /></div>
             </>
           ) : (
-            <span className="phase-label">Morse Learning Study</span>
+            <span className="phase-label">Morse Study</span>
           )}
         </div>
         {state.stage !== 'completed' && (
@@ -223,7 +233,7 @@ export function StudyRunner({ sessionId }: { sessionId: string }) {
 }
 
 function ProfileGeneration({ sessionId, onDone }: { sessionId: string; onDone: (s: SessionState) => void }) {
-  const [msg, setMsg] = useState('Saving your learning results…');
+  const [msg, setMsg] = useState('Nice work! Getting the final challenge ready…');
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
@@ -247,6 +257,7 @@ function ProfileGeneration({ sessionId, onDone }: { sessionId: string; onDone: (
   }, [sessionId, onDone]);
   return (
     <div className="card center" aria-live="polite">
+      <div className="slide-icon" aria-hidden>🏁</div>
       <h2>Learning complete</h2>
       <p className="muted">{msg}</p>
     </div>

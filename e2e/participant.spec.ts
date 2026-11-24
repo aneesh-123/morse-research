@@ -14,7 +14,7 @@ test.describe('participant journey', () => {
     const sid = sessionIdFromUrl(page);
 
     // Learning intro screen, then the first block introduces E and T.
-    await expect(page.getByRole('heading', { name: 'Learning' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Let’s learn' })).toBeVisible();
     await expectNoHorizontalOverflow(page, 'learning intro');
     const learning = await answerTrials(page, sid, ['learning'], (t, o, n) => (o.includes(t) && n % 7 !== 3 ? t : (o.find((x) => x !== t) as string)), {
       onTrial: async (pos) => {
@@ -28,7 +28,7 @@ test.describe('participant journey', () => {
     expect(learning.seenIntros).toEqual(['E', 'T', 'A', 'N', 'I', 'M']);
 
     // Final test: no replay control, IDK present, 6 options, no feedback.
-    await expect(page.getByRole('heading', { name: 'Final test' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Final challenge' })).toBeVisible();
     await page.getByTestId('phase-start').click();
     await expect(page.locator('button.answer')).toHaveCount(6);
     await expect(page.getByTestId('replay')).toHaveCount(0);

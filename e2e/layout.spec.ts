@@ -13,7 +13,7 @@ test('public pages and first study screens fit the viewport with large touch tar
   await startAndConsent(page);
   await screening(page, true);
   const sid = sessionIdFromUrl(page);
-  await expect(page.getByRole('heading', { name: 'Learning' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Let’s learn' })).toBeVisible();
   await answerTrials(page, sid, ['learning'], (t) => t, {
     max: 3,
     onTrial: async () => {

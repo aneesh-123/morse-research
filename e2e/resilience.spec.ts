@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { answerTrials, createProfile, db, screening, sessionIdFromUrl, startAndConsent } from './helpers';
+import { answerTrials, clickThroughConsentSlides, createProfile, db, screening, sessionIdFromUrl, startAndConsent } from './helpers';
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'android-pixel7' && info.project.name !== 'iphone13-emulated', 'phone projects only'));
 
@@ -90,6 +90,7 @@ test('refresh, tab interruption, offline answer and returning sign-in', async ({
 test('declining consent records nothing else; deleting the account removes all data', async ({ page }) => {
   await createProfile(page, 'Decliner');
   await page.getByRole('button', { name: 'Start' }).click();
+  await clickThroughConsentSlides(page);
   await page.getByTestId('consent-decline').click();
   await expect(page.getByRole('heading', { name: 'Session ended' })).toBeVisible();
   const sid = sessionIdFromUrl(page);

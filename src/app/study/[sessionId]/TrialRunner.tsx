@@ -39,6 +39,10 @@ export function TrialRunner(props: {
   telemetry: Telemetry | null;
   onAdvance: (s: SessionState) => void;
   onAudioLost: () => void;
+  /** Called after a learning answer is scored, for streaks and celebration. */
+  onResult?: (correct: boolean) => void;
+  /** Current run of correct learning answers, including this one once scored. */
+  streak?: number;
 }) {
   const { sessionId, trial, audioParams, telemetry, onAdvance } = props;
   const audio = morseAudio();
@@ -232,6 +236,7 @@ export function TrialRunner(props: {
     if (result.feedback) {
       setFeedback(result.feedback);
       setNextState(result.state);
+      props.onResult?.(result.feedback.correct);
       setStep('feedback');
       telemetry?.enterScreen('feedback', trial.position);
       log('feedback_displayed', { payload: { correct: result.feedback.correct } });
@@ -274,19 +279,22 @@ export function TrialRunner(props: {
   }
 
   if (step === 'feedback' && feedback) {
+    const streak = props.streak ?? 0;
     return (
       <div>
+        {feedback.correct && <Celebration />}
         <div className={`feedback ${feedback.correct ? 'good' : 'bad'}`} role="status" aria-live="polite" data-testid="feedback">
-          <div className="verdict">{feedback.correct ? 'Correct' : 'Not quite'}</div>
+          <div className="verdict">{feedback.correct ? cheerFor(streak) : 'Not quite!'}</div>
           {!feedback.correct && (
-            <div className="muted">You chose {feedback.response ?? '“I don’t know”'}. The letter was:</div>
+            <div className="muted">You picked {feedback.response ?? '“I don’t know”'}. That sound was:</div>
           )}
           <div className="big-letter">{feedback.correctCharacter}</div>
           <Pattern pattern={feedback.correctPattern} />
+          {feedback.correct && streak >= 3 && <div className="cheer">🔥 {streak} in a row</div>}
         </div>
         <div className="stack">
-          <button className="btn btn-secondary btn-block" onClick={() => void replay('feedback')}>Hear it again</button>
-          <button className="btn btn-primary btn-block" onClick={next} data-testid="next">Next</button>
+          <button className="btn btn-primary btn-block" onClick={next} data-testid="next">Keep going →</button>
+          <button className="btn btn-secondary btn-block" onClick={() => void replay('feedback')}>🔊 Hear {feedback.correctCharacter} again</button>
         </div>
       </div>
     );
@@ -298,18 +306,18 @@ export function TrialRunner(props: {
   return (
     <div>
       <div className="signal-area">
-        <div className={`listen-indicator${listening ? ' on' : ''}`} aria-hidden>{listening ? '♪' : '?'}</div>
+        <div className={`listen-indicator${listening ? ' on' : ''}`} aria-hidden>{listening ? '🔊' : step === 'waiting' ? '👂' : '?'}</div>
         <div className="status-line" aria-live="polite" data-testid="status">
-          {step === 'waiting' ? 'Get ready…' : listening ? 'Listen…' : step === 'saving' ? (saveMsg ?? 'Saving…') : 'Which letter was that?'}
+          {step === 'waiting' ? 'Get ready…' : listening ? 'Listen…' : step === 'saving' ? (saveMsg ?? (trial.phase === 'learning' ? 'Checking…' : 'Got it')) : 'Which letter was that?'}
         </div>
         {trial.replayAllowed && (
           <button className="btn btn-ghost" onClick={() => void replay('replay')} disabled={!canAnswer} data-testid="replay">
-            ↻ Play again
+            🔁 Play it again
           </button>
         )}
       </div>
       {error && <div className="error" role="alert">{error}</div>}
-      <div className={`answers n${n <= 2 ? 2 : n === 4 ? 4 : 3}`} role="group" aria-label="Answer options">
+      <div className={`answers n${n <= 2 ? 2 : n === 4 ? 4 : 3}${canAnswer ? ' ready' : ''}`} role="group" aria-label="Answer options">
         {trial.options.map((o) => (
           <button
             key={o}
@@ -362,28 +370,80 @@ function Introduction({ trial, audioParams, log, onStart }: { trial: ClientTrial
   }, []);
 
   const first = trial.block === 1;
+  const words = wordsFor(trial.options, trial.introduce.map((c) => c.character));
   return (
-    <div className="stack">
-      <h2>{first ? 'Your first two letters' : 'New letter'}</h2>
+    <div className="stack unlock">
+      <span className="badge-new">{first ? 'Your first letters' : 'New letter unlocked'}</span>
+      <h2>{first ? 'Meet E and T' : `Say hello to ${trial.introduce.map((c) => c.character).join(' and ')}`}</h2>
       <p className="muted">
         {first
-          ? 'Listen to each letter. Then you will hear one at a time and pick which it was. After each answer you will see the correct letter.'
-          : 'This letter is now part of your practice, together with the letters you already know.'}
+          ? 'Listen to how each one sounds. Then you’ll hear them one at a time. Just tap the letter you hear.'
+          : 'It joins the letters you already know. Listen to it a couple of times.'}
       </p>
       {trial.introduce.map((c) => (
-        <div className="card center" key={c.character} data-testid={`intro-${c.character}`}>
+        <div className="letter-card" key={c.character} data-testid={`intro-${c.character}`}>
           <div className="big-letter">{c.character}</div>
           <Pattern pattern={c.pattern} />
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 14 }}>
             <button className="btn btn-secondary" disabled={playing !== null} onClick={() => void play(c.character, c.pattern, false)}>
-              {playing === c.character ? 'Playing…' : `▶ Play ${c.character}`}
+              {playing === c.character ? '🔊 Playing…' : `🔊 Play ${c.character}`}
             </button>
           </div>
         </div>
       ))}
+      {words.length > 0 && !first && (
+        <div>
+          <p className="small muted" style={{ margin: '4px 0 0', fontWeight: 800 }}>Words you can spell now</p>
+          <div className="words">{words.map((w, k) => <span key={w} style={{ animationDelay: `${k * 90}ms` }}>{w}</span>)}</div>
+        </div>
+      )}
       <button className="btn btn-primary btn-block" onClick={onStart} disabled={playing !== null} data-testid="start-practice">
-        {first ? 'Start practising' : 'Continue'}
+        {first ? 'I’m ready' : 'Let’s practise'}
       </button>
     </div>
+  );
+}
+
+const WORDS = ['TEE', 'TEA', 'EAT', 'ATE', 'TAN', 'ANT', 'NET', 'TEN', 'NEAT', 'TEEN', 'TIN', 'TINT', 'NINE', 'INN', 'MEAT', 'TEAM', 'MATE', 'MINT', 'TIME', 'NAME', 'MAIN', 'MEAN', 'ITEM', 'ANIMATE'];
+
+/** Decorative words spelled only with letters already learned, preferring ones that use the new letter. Shown before practice, never during a trial. */
+function wordsFor(active: string[], fresh: string[]): string[] {
+  const ok = WORDS.filter((w) => [...w].every((c) => active.includes(c)));
+  const withNew = ok.filter((w) => fresh.some((c) => w.includes(c)));
+  return [...withNew, ...ok.filter((w) => !withNew.includes(w))].slice(0, 5);
+}
+
+const CHEERS = ['Nice!', 'Yes!', 'Great ear!', 'Spot on!', 'You got it!', 'Nailed it!'];
+function cheerFor(streak: number): string {
+  if (streak >= 5) return 'Unstoppable!';
+  return CHEERS[streak % CHEERS.length] ?? 'Nice!';
+}
+
+const CONFETTI_COLORS = ['var(--accent)', 'var(--pop)', 'var(--sun)', 'var(--sky)', 'var(--mint)'];
+
+/** Screen flash plus a short confetti burst. Hidden for people who prefer reduced motion. */
+function Celebration() {
+  const [pieces] = useState(() =>
+    Array.from({ length: 26 }, (_, k) => {
+      const angle = (Math.PI * 2 * k) / 26 + Math.random() * 0.4;
+      const dist = 140 + Math.random() * 180;
+      return {
+        dx: `${Math.round(Math.cos(angle) * dist)}px`,
+        dy: `${Math.round(Math.sin(angle) * dist - 80)}px`,
+        rot: `${Math.round(Math.random() * 720 - 360)}deg`,
+        color: CONFETTI_COLORS[k % CONFETTI_COLORS.length],
+        delay: `${Math.round(Math.random() * 80)}ms`,
+      };
+    }),
+  );
+  return (
+    <>
+      <div className="flash" aria-hidden />
+      <div className="confetti" aria-hidden>
+        {pieces.map((p, k) => (
+          <i key={k} style={{ background: p.color, animationDelay: p.delay, ['--dx' as string]: p.dx, ['--dy' as string]: p.dy, ['--rot' as string]: p.rot } as React.CSSProperties} />
+        ))}
+      </div>
+    </>
   );
 }

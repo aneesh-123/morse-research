@@ -385,6 +385,8 @@ export const ClientInfoSchema = z.object({
   audioOutputLatencyMs: z.number().nullable(),
   hasGetOutputTimestamp: z.boolean(),
   prefersReducedMotion: z.boolean(),
+  /** Version of the participant interface, so sessions run under different designs can be told apart. */
+  uiVersion: z.string().max(20).optional(),
 });
 
 export async function completeAudioSetup(participantId: string, sessionId: string, info: z.infer<typeof ClientInfoSchema>): Promise<SessionState> {

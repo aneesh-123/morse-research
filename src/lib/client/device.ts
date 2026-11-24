@@ -1,5 +1,8 @@
 'use client';
 
+/** Bump when the participant interface changes in a way that could affect behaviour. ui-v1 = first pilot design. */
+export const UI_VERSION = 'ui-v2';
+
 /**
  * Coarse device description (category, browser family, OS family, touch, viewport).
  * Deliberately avoids fingerprinting signals such as fonts, canvas, plugins or full user agent.
@@ -32,5 +35,6 @@ export function deviceInfo(audio: { sampleRate: number | null; baseLatencyMs: nu
     audioOutputLatencyMs: audio.outputLatencyMs,
     hasGetOutputTimestamp: audio.hasGetOutputTimestamp,
     prefersReducedMotion: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+    uiVersion: UI_VERSION,
   };
 }

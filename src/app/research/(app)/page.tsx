@@ -2,6 +2,17 @@ import Link from 'next/link';
 import { overview } from '@/lib/server/research';
 import { mins, pct } from '@/components/research/format';
 
+const STAGE_NAMES: Record<string, string> = {
+  created: 'Opened, not started',
+  consent_pending: 'Consent screen',
+  audio_setup: 'Sound check',
+  baseline_screening: 'Prior-knowledge question',
+  diagnostic: 'Diagnostic',
+  learning: 'Learning',
+  profile_generation: 'Saving profile',
+  final_assessment: 'Final test',
+};
+
 export default async function Overview({ searchParams }: { searchParams: Promise<{ test?: string }> }) {
   const sp = await searchParams;
   const includeTest = sp.test === '1';
@@ -36,6 +47,37 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         ))}
       </div>
       <div className="grid grid-2" style={{ marginTop: 16 }}>
+        <section className="card">
+          <h2>Where people drop out</h2>
+          <p className="small muted">Day-1 sessions that reached each step. The bar shows the share of opened sessions.</p>
+          <table className="t">
+            <thead><tr><th>Step</th><th className="num">Sessions</th><th style={{ width: '40%' }}>Of opened</th></tr></thead>
+            <tbody>
+              {o.funnel.map((f, i) => {
+                const base = o.funnel[0]!.sessions;
+                const prev = i > 0 ? o.funnel[i - 1]!.sessions : f.sessions;
+                const lost = prev - f.sessions;
+                return (
+                  <tr key={f.step}>
+                    <td className="wrap">{f.step}{lost > 0 ? <span className="small muted"> (−{lost})</span> : null}</td>
+                    <td className="num">{f.sessions}</td>
+                    <td><div className="progress" aria-label={pct(f.sessions, base)}><div style={{ width: base ? `${(100 * f.sessions) / base}%` : 0 }} /></div></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+        <section className="card">
+          <h2>Unfinished sessions</h2>
+          <p className="small muted">Where unfinished Day-1 sessions stopped. “Inactive 24 h+” are still open but untouched for a day, so likely dropped out; they can still resume. Use the session status column in exports to include or exclude them.</p>
+          {o.unfinished.length === 0 ? <p className="muted" style={{ margin: 0 }}>None.</p> : (
+            <table className="t">
+              <thead><tr><th>Stopped at</th><th className="num">Sessions</th><th className="num">Inactive 24 h+</th><th className="num">Withdrawn / closed</th></tr></thead>
+              <tbody>{o.unfinished.map((u) => <tr key={u.stage}><td>{STAGE_NAMES[u.stage] ?? u.stage}</td><td className="num">{u.sessions}</td><td className="num">{u.inactive24h}</td><td className="num">{u.withdrawn}</td></tr>)}</tbody>
+            </table>
+          )}
+        </section>
         <section className="card">
           <h2>Devices</h2>
           <table className="t"><thead><tr><th>Device</th><th className="num">Sessions</th><th className="num">Completed</th></tr></thead>

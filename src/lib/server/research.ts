@@ -21,6 +21,10 @@ export interface OverviewStats {
   finalTotal: number;
   devices: { device: string; sessions: number; completed: number }[];
   protocols: { protocol: string; sessions: number; completed: number }[];
+  /** Day-1 sessions reaching each step, in order (drop-off funnel). */
+  funnel: { step: string; sessions: number }[];
+  /** Unfinished Day-1 sessions by the stage where they stopped. */
+  unfinished: { stage: string; sessions: number; inactive24h: number; withdrawn: number }[];
 }
 
 const TEST_FILTER = (includeTest: boolean, alias = 'p') => (includeTest ? 'true' : `NOT ${alias}.is_test`);
@@ -54,8 +58,33 @@ export async function overview(includeTest = false): Promise<OverviewStats> {
     `SELECT s.protocol_version AS protocol, count(*)::text AS sessions, count(*) FILTER (WHERE s.status = 'completed')::text AS completed
      FROM experiment_sessions s JOIN participants p ON p.id = s.participant_id WHERE ${f} GROUP BY 1 ORDER BY 1`,
   );
+  const fu = await q1<Record<string, string>>(
+    `SELECT count(*)::text AS opened,
+            count(*) FILTER (WHERE s.consented_at IS NOT NULL)::text AS consented,
+            count(*) FILTER (WHERE s.device_category IS NOT NULL)::text AS audio,
+            count(*) FILTER (WHERE s.baseline_status IS NOT NULL)::text AS screened,
+            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM trial_responses r WHERE r.session_id = s.id AND r.phase = 'learning'))::text AS learning,
+            count(*) FILTER (WHERE (SELECT count(*) FROM trial_responses r WHERE r.session_id = s.id AND r.phase = 'learning') >= 24)::text AS halfway,
+            count(*) FILTER (WHERE EXISTS (SELECT 1 FROM knowledge_profiles k WHERE k.session_id = s.id))::text AS profiled,
+            count(*) FILTER (WHERE s.stage = 'completed')::text AS completed
+     FROM experiment_sessions s JOIN participants p ON p.id = s.participant_id
+     WHERE s.study_type = 'day1_learning' AND ${f}`,
+  );
+  const unfinished = await q<{ stage: string; sessions: string; inactive: string; withdrawn: string }>(
+    `SELECT CASE WHEN s.stage IN ('withdrawn', 'abandoned')
+                 THEN coalesce((SELECT h->>'from' FROM jsonb_array_elements(s.stage_history) h WHERE h->>'to' = s.stage LIMIT 1), 'unknown')
+                 ELSE s.stage END AS stage,
+            count(*)::text AS sessions,
+            count(*) FILTER (WHERE s.status = 'in_progress' AND s.last_activity_at < now() - interval '24 hours')::text AS inactive,
+            count(*) FILTER (WHERE s.status IN ('withdrawn', 'abandoned'))::text AS withdrawn
+     FROM experiment_sessions s JOIN participants p ON p.id = s.participant_id
+     WHERE s.study_type = 'day1_learning' AND s.status IN ('in_progress', 'withdrawn', 'abandoned') AND ${f}
+     GROUP BY 1`,
+  );
   const n = (k: string) => Number(base?.[k] ?? 0);
   const num = (k: string) => (base?.[k] == null ? null : Number(base[k]));
+  const fn = (k: string) => Number(fu?.[k] ?? 0);
+  const ORDER = ['created', 'consent_pending', 'audio_setup', 'baseline_screening', 'diagnostic', 'learning', 'profile_generation', 'final_assessment'];
   return {
     participants: n('participants'),
     sessions: n('sessions'),
@@ -72,6 +101,19 @@ export async function overview(includeTest = false): Promise<OverviewStats> {
     finalTotal: Number(fin?.n ?? 0),
     devices: devices.map((d) => ({ device: d.device, sessions: Number(d.sessions), completed: Number(d.completed) })),
     protocols: protocols.map((d) => ({ protocol: d.protocol, sessions: Number(d.sessions), completed: Number(d.completed) })),
+    funnel: [
+      { step: 'Opened a session', sessions: fn('opened') },
+      { step: 'Agreed to take part', sessions: fn('consented') },
+      { step: 'Passed the sound check', sessions: fn('audio') },
+      { step: 'Answered the prior-knowledge question', sessions: fn('screened') },
+      { step: 'Started learning', sessions: fn('learning') },
+      { step: 'Halfway through learning (24 answers)', sessions: fn('halfway') },
+      { step: 'Finished learning (profile frozen)', sessions: fn('profiled') },
+      { step: 'Finished the final test', sessions: fn('completed') },
+    ],
+    unfinished: unfinished
+      .map((u) => ({ stage: u.stage, sessions: Number(u.sessions), inactive24h: Number(u.inactive), withdrawn: Number(u.withdrawn) }))
+      .sort((a, b) => ORDER.indexOf(a.stage) - ORDER.indexOf(b.stage)),
   };
 }
 

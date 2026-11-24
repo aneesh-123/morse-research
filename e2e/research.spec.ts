@@ -35,6 +35,7 @@ test.describe('researcher dashboard', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await expect(page.getByText('Final test accuracy')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Where people drop out' })).toBeVisible();
 
     await page.getByRole('link', { name: 'Participants' }).first().click();
     await expect(page.getByRole('heading', { name: 'Participants' })).toBeVisible();

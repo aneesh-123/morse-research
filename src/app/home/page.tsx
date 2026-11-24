@@ -39,7 +39,7 @@ export default async function HomePage() {
     <>
       <TopBar right={<SignOutButton />} />
       <main className="page">
-        <h1>Hi, {ov.displayName}</h1>
+        <h1>Hi, {ov.displayName} 👋</h1>
         <p className="muted small">
           Participant code <strong>{ov.publicCode}</strong>
           {ov.lastParticipation ? <> · last took part {fmt(ov.lastParticipation)}</> : null}
@@ -47,7 +47,8 @@ export default async function HomePage() {
 
         {ov.incompleteSession ? (
           <section className="card">
-            <h2>You have a session in progress</h2>
+            <span className="badge accent">In progress</span>
+            <h2 style={{ marginTop: 8 }}>You have a session in progress</h2>
             <p className="muted">
               {TITLES[ov.incompleteSession.studyType]}: {STAGE_TEXT[ov.incompleteSession.stage] ?? ov.incompleteSession.stage}. Your answers so far are
               saved and you will continue where you left off.
@@ -57,9 +58,9 @@ export default async function HomePage() {
         ) : ov.available.length ? (
           ov.available.map((a) => (
             <section className="card" key={a.studyType}>
-              <span className="badge accent">Available now</span>
-              <h2 style={{ marginTop: 8 }}>{a.title}</h2>
-              <p className="muted">About {a.minutes[0]}–{a.minutes[1]} minutes. You will need sound.</p>
+              <span className="badge accent">Ready when you are</span>
+              <h2 style={{ marginTop: 8 }}>{a.studyType === 'day1_learning' ? '🎧 Learn six Morse letters' : a.title}</h2>
+              <p className="muted">About {a.minutes[0]}–{a.minutes[1]} minutes. Turn your sound on.</p>
               <StartButton studyType={a.studyType} />
             </section>
           ))
